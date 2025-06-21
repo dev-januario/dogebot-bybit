@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>DOGE Entradas Bot - v2.1 (Modo Alvo Único)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+
+        .status {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        .test-section {
+            background: #f0f8ff;
+            border: 1px solid #2196f3;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        .warning {
+            background: #fff3e0;
+            border: 1px solid #ff9800;
+            color: #e65100;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+
+        button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        .test-btn {
+            background: #2196f3;
+        }
+
+        .test-btn:hover {
+            background: #1976d2;
+        }
+
+        #log {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 250px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🐕 DOGE Entradas Bot v2.1</h1>
+        <h2>Modo de Alvo Único</h2>
+
+        <div class="warning">
+            ⚠️ ATENÇÃO: Nunca exponha seu Token de Bot do Telegram em código que roda no navegador. Ele pode ser
+            roubado! Use
+            este script por sua conta e risco.
+        </div>
+
+        <div class="status">
+            <strong>Status:</strong> <span id="status">Inicializando...</span>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 Teste de Conexão</h3>
+            <p>Clique no botão abaixo para testar se o bot consegue enviar mensagens para o Telegram:</p>
+            <button class="test-btn" onclick="sendTestMessage()">📱 Enviar Teste para Telegram</button>
+        </div>
+
+        <div>
+            <h3>📊 Controles</h3>
+            <button onclick="startBot()">▶️ Iniciar Bot</button>
+            <button onclick="stopBot()">⏹️ Parar Bot</button>
+            <button onclick="checkNow()">🔍 Verificar Agora</button>
+        </div>
+
+        <div>
+            <h3>📝 Log de Atividades</h3>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- [!] ALERTA DE SEGURANÇA ---
+        // Seu token está exposto aqui. Qualquer um pode vê-lo inspecionando a página.
+        // Considere rodar este bot em um servidor (Node.js) para proteger seu token.
+        const telegramBotToken = "7638628732:AAHFNGTcoikDyJctbMXD1MbQlwRsR70Npn8";
+        const telegramChatId = "@DogeEntradas";
+
+        // --- PARÂMETROS DE TRADE CONFIGURÁVEIS ---
+        const ALAVANCAGEM = "15x";
+        const PERCENTUAL_BANCA = "10%";
+        const STOP_LOSS_LONG = "-2%";   // SL para operação de compra
+        const TAKE_PROFIT_LONG = "+4%"; // TP para operação de compra
+        const STOP_LOSS_SHORT = "+2%";  // SL para operação de venda
+        const TAKE_PROFIT_SHORT = "-4%";// TP para operação de venda
+        const ADX_MINIMO_TENDENCIA = 25; // Força mínima da tendência para considerar uma entrada
+
+        // --- CONFIGURAÇÕES GERAIS ---
+        const checkInterval = 10 * 60 * 1000; // 10 minutos
+        const apiUrl = "https://api.bybit.com/v5/market/kline";
+        const params = new URLSearchParams({
+            category: "linear",
+            symbol: "DOGEUSDT",
+            interval: "240", // 4h
+            limit: "200"
+        });
+
+        let botInterval = null;
+        let isRunning = false;
+        // [MUDANÇA] Variável para guardar o timestamp do candle do último sinal enviado.
+        let lastSignalTimestamp = null;
+
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleString('pt-BR');
+            logElement.innerHTML += `[${timestamp}] ${message}<br>`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function updateStatus(status) {
+            document.getElementById('status').textContent = status;
+        }
+
+        async function sendTestMessage() {
+            try {
+                log('Enviando mensagem de teste...');
+                const now = new Date();
+                const dataHora = now.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+                const testMsg = `✅ Teste do DOGE Bot v2.1 realizado com sucesso!\nData: ${dataHora}`;
+                await sendTelegramMessage(testMsg);
+                log('✅ Mensagem de teste enviada com sucesso!');
+            } catch (error) {
+                log(`❌ Erro no teste: ${error.message}`);
+            }
+        }
+
+        async function sendTelegramMessage(msg) {
+            const response = await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_id: telegramChatId, text: msg })
+            });
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(`Erro ao enviar para Telegram: ${error}`);
+            }
+            return response.json();
+        }
+
+        async function fetchData() {
+            try {
+                const response = await fetch(`${apiUrl}?${params}`);
+                if (!response.ok) {
+                    throw new Error(`Erro na API Bybit: ${response.statusText}`);
+                }
+                const json = await response.json();
+                if (json.retCode !== 0) {
+                    throw new Error(`Erro na API Bybit: ${json.retMsg}`);
+                }
+                return json.result.list.map(item => ({
+                    time: Number(item[0]),
+                    open: Number(item[1]),
+                    high: Number(item[2]),
+                    low: Number(item[3]),
+                    close: Number(item[4]),
+                    volume: Number(item[5])
+                })).reverse();
+            } catch (error) {
+                log(`❌ Erro ao buscar dados: ${error.message}`);
+                return [];
+            }
+        }
+
+        // --- FUNÇÕES DE INDICADORES TÉCNICOS (sem alterações) ---
+        function sma(data, period) { let sums = []; for (let i = 0; i <= data.length - period; i++) { let sum = 0; for (let j = 0; j < period; j++) { sum += data[i + j]; } sums.push(sum / period); } return sums; }
+        function ema(data, period) { const k = 2 / (period + 1); let emaData = [data[0]]; for (let i = 1; i < data.length; i++) { emaData.push(data[i] * k + emaData[i - 1] * (1 - k)); } return emaData; }
+        function rsi(data, period = 14) { let gains = []; let losses = []; for (let i = 1; i < data.length; i++) { const diff = data[i] - data[i - 1]; gains.push(diff > 0 ? diff : 0); losses.push(diff < 0 ? -diff : 0); } let avgGain = gains.slice(0, period).reduce((a, b) => a + b) / period; let avgLoss = losses.slice(0, period).reduce((a, b) => a + b) / period; let rsiValues = [100 - (100 / (1 + (avgGain / avgLoss)))]; for (let i = period; i < gains.length; i++) { avgGain = (avgGain * (period - 1) + gains[i]) / period; avgLoss = (avgLoss * (period - 1) + losses[i]) / period; if (avgLoss === 0) { rsiValues.push(100); } else { const rs = avgGain / avgLoss; rsiValues.push(100 - (100 / (1 + rs))); } } return rsiValues; }
+        function stochastic(highs, lows, closes, kPeriod, kSlowing, dPeriod) { let ll = [], hh = []; for (let i = kPeriod - 1; i < closes.length; i++) { ll.push(Math.min(...lows.slice(i - kPeriod + 1, i + 1))); hh.push(Math.max(...highs.slice(i - kPeriod + 1, i + 1))); } let k = []; for (let i = 0; i < ll.length; i++) { k.push(100 * (closes[i + kPeriod - 1] - ll[i]) / (hh[i] - ll[i] || 1)); } let smoothedK = sma(k, kSlowing); let d = sma(smoothedK, dPeriod); return { k: smoothedK, d: d }; }
+        function adx(highs, lows, closes, period) { let trs = [], plusDMs = [], minusDMs = []; for (let i = 1; i < highs.length; i++) { let tr1 = highs[i] - lows[i]; let tr2 = Math.abs(highs[i] - closes[i - 1]); let tr3 = Math.abs(lows[i] - closes[i - 1]); trs.push(Math.max(tr1, tr2, tr3)); let upMove = highs[i] - highs[i - 1]; let downMove = lows[i - 1] - lows[i]; plusDMs.push((upMove > downMove && upMove > 0) ? upMove : 0); minusDMs.push((downMove > upMove && downMove > 0) ? downMove : 0); } const wildersSmooth = (data) => { let smoothed = [data.slice(0, period).reduce((a, b) => a + b)]; for (let i = period; i < data.length; i++) { smoothed.push(smoothed.at(-1) - (smoothed.at(-1) / period) + data[i]); } return smoothed; }; let smoothedTR = wildersSmooth(trs); let smoothedPlusDM = wildersSmooth(plusDMs); let smoothedMinusDM = wildersSmooth(minusDMs); let plusDIs = [], minusDIs = [], dxs = []; for (let i = 0; i < smoothedTR.length; i++) { plusDIs.push(100 * (smoothedPlusDM[i] / smoothedTR[i])); minusDIs.push(100 * (smoothedMinusDM[i] / smoothedTR[i])); } for (let i = 0; i < plusDIs.length; i++) { dxs.push(100 * Math.abs(plusDIs[i] - minusDIs[i]) / (plusDIs[i] + minusDIs[i])); } let adxValues = wildersSmooth(dxs.slice(period - 1)); return { adx: adxValues, plusDI: plusDIs, minusDI: minusDIs }; }
+
+        // --- FUNÇÃO PRINCIPAL DE VERIFICAÇÃO (MODIFICADA) ---
+        async function checkSignal() {
+            if (!isRunning) return;
+
+            try {
+                log('🔍 Verificando sinais...');
+                const candles = await fetchData();
+
+                if (candles.length < 150) {
+                    log('❌ Dados insuficientes para calcular indicadores.');
+                    return;
+                }
+
+                // [MUDANÇA] Pega o timestamp do candle mais recente (o candle atual).
+                const currentCandleTimestamp = candles.at(-1).time;
+
+                // [MUDANÇA] Se já enviamos um sinal para este candle, não fazemos mais nada.
+                if (currentCandleTimestamp === lastSignalTimestamp) {
+                    log(`⏳ Já foi enviado um sinal para o candle atual. Aguardando o próximo de 4h.`);
+                    return;
+                }
+
+                const closes = candles.map(c => c.close);
+                const highs = candles.map(c => c.high);
+                const lows = candles.map(c => c.low);
+
+                const ema17 = ema(closes, 17);
+                const ema50 = ema(closes, 50);
+                const ema72 = ema(closes, 72);
+                const rsi14 = rsi(closes, 14);
+                const stoch = stochastic(highs, lows, closes, 14, 5, 5);
+                const adxResult = adx(highs, lows, closes, 14);
+
+                const currentPrice = closes.at(-1);
+                const lastEma17 = ema17.at(-1);
+                const lastEma50 = ema50.at(-1);
+                const lastEma72 = ema72.at(-1);
+                const lastRsi = rsi14.at(-1);
+                const lastStochK = stoch.k.at(-1);
+                const lastAdx = adxResult.adx.at(-1);
+
+                log(`📊 Preço: ${currentPrice.toFixed(5)} | RSI: ${lastRsi.toFixed(2)} | ADX: ${lastAdx.toFixed(2)} | Stoch K: ${lastStochK.toFixed(2)}`);
+
+                const isLong = lastEma17 > lastEma50 && lastEma50 > lastEma72 && lastRsi > 50 && lastAdx > ADX_MINIMO_TENDENCIA && lastStochK < 80;
+                const isShort = lastEma17 < lastEma50 && lastEma50 < lastEma72 && lastRsi < 50 && lastAdx > ADX_MINIMO_TENDENCIA && lastStochK > 20;
+
+                if (isShort || isLong) {
+                    const op = isShort ? "SHORT (VENDA)" : "LONG (COMPRA)";
+                    const sl = isShort ? STOP_LOSS_SHORT : STOP_LOSS_LONG;
+                    const tp = isShort ? TAKE_PROFIT_SHORT : TAKE_PROFIT_LONG;
+                    const horario = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+                    const msg = `
+📢 ENTRADA CONFIRMADA - DOGE/USDT (4H) 📢
+
+Análise Concluída: ${horario}
+
+🔹 Operação: ${op}
+🔹 Ativo: DOGEUSDT
+🔹 Entrada: Preço de Mercado (~ ${currentPrice.toFixed(5)})
+🔹 Alavancagem Sugerida: ${ALAVANCAGEM}
+🔹 Gerenciamento: ${PERCENTUAL_BANCA} da banca
+
+🎯 Take Profit: ${tp}
+🛡️ Stop Loss: ${sl}
+
+#DOGE #TradeSignal #Bybit
+          `;
+
+                    await sendTelegramMessage(msg);
+                    log(`🚀 SINAL ${op} ENVIADO! Preço: $${currentPrice.toFixed(5)}`);
+
+                    // [MUDANÇA] Guarda o timestamp do candle que gerou o sinal para não repetir.
+                    lastSignalTimestamp = currentCandleTimestamp;
+
+                } else {
+                    log('⏳ Nenhuma entrada clara detectada. Observando o mercado...');
+                }
+            } catch (error) {
+                log(`❌ Erro fatal na verificação: ${error.message}`);
+            }
+        }
+
+        function startBot() {
+            if (isRunning) {
+                log('⚠️ Bot já está rodando!');
+                return;
+            }
+            isRunning = true;
+            updateStatus('🟢 Rodando - Monitoramento ativo');
+            log('▶️ Bot iniciado! Verificando a cada 10 minutos por uma oportunidade única.');
+            checkSignal();
+            botInterval = setInterval(checkSignal, checkInterval);
+        }
+
+        function stopBot() {
+            if (!isRunning) {
+                log('⚠️ Bot já está parado!');
+                return;
+            }
+            isRunning = false;
+            if (botInterval) {
+                clearInterval(botInterval);
+                botInterval = null;
+            }
+            // [MUDANÇA] Reseta a memória do último sinal ao parar o bot.
+            lastSignalTimestamp = null;
+            updateStatus('🔴 Parado');
+            log('⏹️ Bot parado! A memória de sinais foi limpa.');
+        }
+
+        function checkNow() {
+            if (!isRunning) {
+                log('⚠️ Inicie o bot primeiro!');
+                return;
+            }
+            log("Forçando verificação imediata...");
+            checkSignal();
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            alert("AVISO DE SEGURANÇA: Este script expõe seu Token do Bot do Telegram. Qualquer pessoa pode inspecionar a página e roubá-lo. Não use tokens importantes aqui. Prossiga por sua conta e risco.");
+            updateStatus('🟡 Pronto para iniciar');
+            log('🤖 Bot v2.1 (Modo Alvo Único) carregado e pronto!');
+            log('💡 Clique em "Enviar Teste" para verificar a conexão com Telegram.');
+        });
+    </script>
+</body>
+
+</html>
