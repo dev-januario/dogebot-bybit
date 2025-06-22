@@ -102,7 +102,7 @@
 <body>
     <div class="container">
         <h1>📈 Bot de Trading Multi-Ativos v3.2</h1>
-        <h2>Monitoramento de ETH, DOGE e Picos (4H)</h2>
+        <h2>Monitoramento Completo de Ativos (4H)</h2>
         <div class="warning">
             ⚠️ ATENÇÃO: Nunca exponha seu Token de Bot do Telegram em código que roda no navegador. Ele pode ser
             roubado! Use este script em um servidor seguro.
@@ -119,11 +119,6 @@
             <h3>📊 Controles</h3>
             <label for="entryValue">Valor de Entrada (USD):</label>
             <input type="number" id="entryValue" min="1" placeholder="Ex.: 200" />
-            <select id="assetSelect" onchange="updateAsset()">
-                <option value="DOGEUSDT">DOGEUSDT</option>
-                <option value="ETHUSDT">ETHUSDT</option>
-                <option value="TRENDING">Ativos com Picos</option>
-            </select>
             <button onclick="startBot()">▶️ Iniciar Bot</button>
             <button onclick="stopBot()">⏹️ Parar Bot</button>
             <button onclick="checkNow()">🔍 Verificar Agora</button>
@@ -149,7 +144,7 @@
         };
         const DEFAULT_ENTRY_VALUE = 100; // Valor padrão se o campo estiver vazio
         const ADX_MINIMO_TENDENCIA = 25;
-        const PEAK_THRESHOLD = 10; // Variação mínima em 24h após pico recente
+        const PEAK_THRESHOLD = 10; // Variação mínima em 24h após pico recente (mantido para a lógica de trending)
         const checkInterval = 10 * 60 * 1000; // 10 minutos
         const apiKlineUrl = "https://api.bybit.com/v5/market/kline";
         const apiTickersUrl = "https://api.bybit.com/v5/market/tickers?category=linear";
@@ -157,7 +152,7 @@
         let botInterval = null;
         let isRunning = false;
         let lastSignalTimestamps = {};
-        let trendingAssets = [];
+        let allAvailableAssets = []; // Para armazenar todos os ativos USDT disponíveis
 
         function log(message) {
             const logElement = document.getElementById('log');
@@ -213,29 +208,24 @@
             }
         }
 
-        async function fetchTrendingAssets() {
+        async function fetchAllUSDTAssets() {
             try {
+                log('Buscando todos os ativos USDT disponíveis...');
                 const response = await fetch(apiTickersUrl);
+                if (!response.ok) throw new Error(`Erro API Bybit: ${response.statusText}`);
                 const json = await response.json();
                 if (json.retCode !== 0) throw new Error(`Erro API: ${json.retMsg}`);
-                trendingAssets = [];
-                for (const ticker of json.result.list) {
-                    if (!ticker.symbol.endsWith("USDT")) continue;
-                    const candles = await fetchKlineData(ticker.symbol);
-                    if (candles.length < 6) continue;
-                    const recentCandles = candles.slice(-6); // Últimos 24h (6 candles de 4h)
-                    const olderPrice = candles[candles.length - 12]?.close || candles[0].close; // Aproximadamente 48h atrás
-                    const currentPrice = candles[0].close;
-                    const totalChange = ((currentPrice - olderPrice) / olderPrice) * 100;
-                    if (totalChange < PEAK_THRESHOLD) continue;
-                    const recentChange = recentCandles.reduce((sum, c) => sum + ((c.close - c.open) / c.open) * 100, 0);
-                    if (recentChange > totalChange * 0.7) { // Pico recente contribui com >70% da variação
-                        trendingAssets.push(ticker.symbol);
-                    }
-                }
-                log(`📈 Ativos com picos: ${trendingAssets.join(', ') || 'Nenhum'}`);
+
+                const assets = json.result.list
+                    .filter(ticker => ticker.symbol.endsWith("USDT") && ticker.status === "Trading")
+                    .map(ticker => ticker.symbol);
+
+                log(`✅ Encontrados ${assets.length} ativos USDT para monitoramento.`);
+                return assets;
+
             } catch (error) {
-                log(`❌ Erro ao buscar ativos com picos: ${error.message}`);
+                log(`❌ Erro ao buscar todos os ativos USDT: ${error.message}`);
+                return [];
             }
         }
 
@@ -365,9 +355,18 @@
                 const lastRsi = rsi14.at(-1);
                 const lastStochK = stoch.k.at(-1);
                 const lastAdx = adxResult.adx.at(-1);
+
+                // Validações para garantir que os indicadores estão disponíveis
+                if (isNaN(lastEma17) || isNaN(lastEma50) || isNaN(lastEma72) || isNaN(lastRsi) || isNaN(lastStochK) || isNaN(lastAdx)) {
+                    log(`⚠️ Indicadores inválidos para ${symbol}. Pulando.`);
+                    return;
+                }
+
                 log(`📊 ${symbol} | Preço: ${currentPrice.toFixed(5)} | RSI: ${lastRsi.toFixed(2)} | ADX: ${lastAdx.toFixed(2)}`);
+
                 const isLong = lastEma17 > lastEma50 && lastEma50 > lastEma72 && lastRsi > 50 && lastAdx > ADX_MINIMO_TENDENCIA && lastStochK < 80;
                 const isShort = lastEma17 < lastEma50 && lastEma50 < lastEma72 && lastRsi < 50 && lastAdx > ADX_MINIMO_TENDENCIA && lastStochK > 20;
+
                 if (isLong || isShort) {
                     const op = isShort ? "SHORT (VENDA)" : "LONG (COMPRA)";
                     const { profit, entryValue } = calculateEstimatedProfit(isShort);
@@ -397,17 +396,19 @@ Análise: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }
         }
 
         async function checkAllSignals() {
-            const selectedAsset = document.getElementById('assetSelect').value;
-            let assets = ['DOGEUSDT', 'ETHUSDT'];
-            if (selectedAsset === 'TRENDING') {
-                await fetchTrendingAssets();
-                assets = trendingAssets;
-            } else if (selectedAsset !== 'ALL') {
-                assets = [selectedAsset];
+            if (allAvailableAssets.length === 0) {
+                allAvailableAssets = await fetchAllUSDTAssets();
+                if (allAvailableAssets.length === 0) {
+                    log('Não foi possível obter a lista de ativos. Tentando novamente na próxima verificação.');
+                    return;
+                }
             }
-            for (const asset of assets) {
+
+            log('Iniciando verificação de todos os ativos...');
+            for (const asset of allAvailableAssets) {
                 await checkSignal(asset);
             }
+            log('Verificação de todos os ativos concluída.');
         }
 
         function startBot() {
@@ -416,8 +417,9 @@ Análise: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }
                 return;
             }
             isRunning = true;
-            updateStatus('🟢 Rodando - Monitoramento ativo');
-            log('▶️ Bot iniciado! Verificando a cada 10 minutos.');
+            updateStatus('🟢 Rodando - Monitoramento ativo de TODOS os ativos');
+            log('▶️ Bot iniciado! Verificando a cada 10 minutos todos os ativos USDT.');
+            // A primeira execução busca e verifica todos os ativos
             checkAllSignals();
             botInterval = setInterval(checkAllSignals, checkInterval);
         }
@@ -430,9 +432,9 @@ Análise: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }
             isRunning = false;
             clearInterval(botInterval);
             botInterval = null;
-            lastSignalTimestamps = {};
+            lastSignalTimestamps = {}; // Limpa o registro de sinais
             updateStatus('🔴 Parado');
-            log('⏹️ Bot parado! Memória de sinais limpa.');
+            log('⏹️ Bot parado! Monitoramento de todos os ativos encerrado.');
         }
 
         function checkNow() {
@@ -440,18 +442,16 @@ Análise: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }
                 log('⚠️ Inicie o bot primeiro!');
                 return;
             }
-            log('Forçando verificação imediata...');
+            log('Forçando verificação imediata de todos os ativos...');
             checkAllSignals();
         }
 
-        function updateAsset() {
-            log(`Ativo selecionado: ${document.getElementById('assetSelect').value}`);
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             alert("AVISO DE SEGURANÇA: Token do Telegram exposto. Use apenas em ambiente seguro!");
             updateStatus('🟡 Pronto para iniciar');
-            log('🤖 Bot v3.2 carregado e pronto!');
+            log('🤖 Bot v3.2 carregado e pronto para monitorar todos os ativos!');
+            // Pré-carrega a lista de ativos ao carregar a página
+            allAvailableAssets = await fetchAllUSDTAssets();
         });
     </script>
 </body>
