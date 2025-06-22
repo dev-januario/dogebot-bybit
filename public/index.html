@@ -3,106 +3,150 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Bot de Trading Multi-Ativos - v3.2</title>
+    <title>Bot de Trading Multi-Ativos - v3.3</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
+            font-family: 'Inter', -apple-system, sans-serif;
+            margin: 0;
             padding: 20px;
-            background-color: #f5f5f5;
+            background-color: #121212;
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
         }
 
         .container {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            background: #1c1c1c;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            max-width: 900px;
+            width: 100%;
         }
 
         h1,
         h2 {
-            color: #333;
+            color: #ffffff;
             text-align: center;
+            margin: 0 0 16px;
+        }
+
+        h1 {
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        h2 {
+            font-size: 20px;
+            color: #bb86fc;
         }
 
         .status {
-            background: #e8f5e8;
-            border: 1px solid #4caf50;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 20px 0;
+            background: #252525;
+            border: 1px solid #333;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 16px 0;
+            color: #b0b0b0;
+        }
+
+        .status span {
+            color: #03dac6;
+            font-weight: 600;
         }
 
         .test-section {
-            background: #f0f8ff;
-            border: 1px solid #2196f3;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 20px 0;
+            background: #252525;
+            border: 1px solid #0288d1;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+
+        .test-section h3 {
+            color: #0288d1;
+            margin: 0 0 12px;
         }
 
         .warning {
-            background: #fff3e0;
-            border: 1px solid #ff9800;
-            color: #e65100;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 20px 0;
-            font-weight: bold;
+            background: #3e2723;
+            border: 1px solid #ff5722;
+            color: #ff8a65;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+            font-weight: 600;
         }
 
         button {
-            background: #4caf50;
-            color: white;
+            background: #00c853;
+            color: #121212;
             border: none;
             padding: 12px 24px;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 16px;
-            margin: 10px 5px;
+            font-weight: 600;
+            margin: 8px 4px;
+            transition: background 0.2s;
         }
 
         button:hover {
-            background: #45a049;
+            background: #00e676;
         }
 
         .test-btn {
-            background: #2196f3;
+            background: #0288d1;
+            color: #ffffff;
         }
 
         .test-btn:hover {
-            background: #1976d2;
+            background: #039be5;
         }
 
         #log {
-            background: #f9f9f9;
-            border: 1px solid #ddd;
-            padding: 10px;
-            border-radius: 5px;
-            max-height: 300px;
+            background: #1c1c1c;
+            border: 1px solid #333;
+            padding: 12px;
+            border-radius: 8px;
+            max-height: 320px;
             overflow-y: auto;
-            font-family: monospace;
-            font-size: 12px;
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+            color: #b0b0b0;
         }
 
-        select,
         input[type="number"] {
-            padding: 8px;
-            margin: 10px 5px;
-            border-radius: 5px;
+            padding: 10px;
+            margin: 8px 4px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: #252525;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+
+        input[type="number"]::placeholder {
+            color: #757575;
         }
 
         label {
-            margin-right: 10px;
+            color: #bb86fc;
+            font-weight: 600;
+            margin-right: 8px;
         }
     </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Fira+Code&display=swap"
+        rel="stylesheet">
 </head>
 
 <body>
     <div class="container">
-        <h1>📈 Bot de Trading Multi-Ativos v3.2</h1>
-        <h2>Monitoramento Completo de Ativos (4H)</h2>
+        <h1>📈 Bot de Trading Multi-Ativos v3.3</h1>
+        <h2>Monitoramento de ETH, DOGE e Ativos em Alta (4H)</h2>
         <div class="warning">
             ⚠️ ATENÇÃO: Nunca exponha seu Token de Bot do Telegram em código que roda no navegador. Ele pode ser
             roubado! Use este script em um servidor seguro.
@@ -142,17 +186,17 @@
             shortTP: "-4%",
             shortSL: "+2%"
         };
-        const DEFAULT_ENTRY_VALUE = 100; // Valor padrão se o campo estiver vazio
+        const DEFAULT_ENTRY_VALUE = 100;
         const ADX_MINIMO_TENDENCIA = 25;
-        const PEAK_THRESHOLD = 10; // Variação mínima em 24h após pico recente (mantido para a lógica de trending)
-        const checkInterval = 10 * 60 * 1000; // 10 minutos
+        const PEAK_THRESHOLD = 10;
+        const checkInterval = 10 * 60 * 1000;
         const apiKlineUrl = "https://api.bybit.com/v5/market/kline";
         const apiTickersUrl = "https://api.bybit.com/v5/market/tickers?category=linear";
 
         let botInterval = null;
         let isRunning = false;
         let lastSignalTimestamps = {};
-        let allAvailableAssets = []; // Para armazenar todos os ativos USDT disponíveis
+        let trendingAssets = [];
 
         function log(message) {
             const logElement = document.getElementById('log');
@@ -169,7 +213,7 @@
             try {
                 log('Enviando mensagem de teste...');
                 const now = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-                const testMsg = `✅ Teste do Bot de Trading v3.2\nData: ${now}`;
+                const testMsg = `✅ Teste do Bot de Trading v3.3\nData: ${now}`;
                 await sendTelegramMessage(testMsg);
                 log('✅ Mensagem de teste enviada!');
             } catch (error) {
@@ -208,24 +252,29 @@
             }
         }
 
-        async function fetchAllUSDTAssets() {
+        async function fetchTrendingAssets() {
             try {
-                log('Buscando todos os ativos USDT disponíveis...');
                 const response = await fetch(apiTickersUrl);
-                if (!response.ok) throw new Error(`Erro API Bybit: ${response.statusText}`);
                 const json = await response.json();
                 if (json.retCode !== 0) throw new Error(`Erro API: ${json.retMsg}`);
-
-                const assets = json.result.list
-                    .filter(ticker => ticker.symbol.endsWith("USDT") && ticker.status === "Trading")
-                    .map(ticker => ticker.symbol);
-
-                log(`✅ Encontrados ${assets.length} ativos USDT para monitoramento.`);
-                return assets;
-
+                trendingAssets = [];
+                for (const ticker of json.result.list) {
+                    if (!ticker.symbol.endsWith("USDT")) continue;
+                    const candles = await fetchKlineData(ticker.symbol);
+                    if (candles.length < 6) continue;
+                    const recentCandles = candles.slice(-6);
+                    const olderPrice = candles[candles.length - 12]?.close || candles[0].close;
+                    const currentPrice = candles[0].close;
+                    const totalChange = ((currentPrice - olderPrice) / olderPrice) * 100;
+                    if (totalChange < PEAK_THRESHOLD) continue;
+                    const recentChange = recentCandles.reduce((sum, c) => sum + ((c.close - c.open) / c.open) * 100, 0);
+                    if (recentChange > totalChange * 0.7) {
+                        trendingAssets.push(ticker.symbol);
+                    }
+                }
+                log(`📈 Ativos com picos: ${trendingAssets.join(', ') || 'Nenhum'}`);
             } catch (error) {
-                log(`❌ Erro ao buscar todos os ativos USDT: ${error.message}`);
-                return [];
+                log(`❌ Erro ao buscar ativos com picos: ${error.message}`);
             }
         }
 
@@ -319,8 +368,8 @@
         function calculateEstimatedProfit(isShort) {
             const entryValueInput = document.getElementById('entryValue').value;
             const entryValue = (entryValueInput && Number(entryValueInput) > 0) ? Number(entryValueInput) : DEFAULT_ENTRY_VALUE;
-            const leverage = 10; // 10x
-            const tpPercent = isShort ? -4 : 4; // TP em %
+            const leverage = 10;
+            const tpPercent = isShort ? -4 : 4;
             const profit = (entryValue * leverage * Math.abs(tpPercent)) / 100;
             return { profit: profit.toFixed(2), entryValue };
         }
@@ -355,18 +404,9 @@
                 const lastRsi = rsi14.at(-1);
                 const lastStochK = stoch.k.at(-1);
                 const lastAdx = adxResult.adx.at(-1);
-
-                // Validações para garantir que os indicadores estão disponíveis
-                if (isNaN(lastEma17) || isNaN(lastEma50) || isNaN(lastEma72) || isNaN(lastRsi) || isNaN(lastStochK) || isNaN(lastAdx)) {
-                    log(`⚠️ Indicadores inválidos para ${symbol}. Pulando.`);
-                    return;
-                }
-
                 log(`📊 ${symbol} | Preço: ${currentPrice.toFixed(5)} | RSI: ${lastRsi.toFixed(2)} | ADX: ${lastAdx.toFixed(2)}`);
-
                 const isLong = lastEma17 > lastEma50 && lastEma50 > lastEma72 && lastRsi > 50 && lastAdx > ADX_MINIMO_TENDENCIA && lastStochK < 80;
                 const isShort = lastEma17 < lastEma50 && lastEma50 < lastEma72 && lastRsi < 50 && lastAdx > ADX_MINIMO_TENDENCIA && lastStochK > 20;
-
                 if (isLong || isShort) {
                     const op = isShort ? "SHORT (VENDA)" : "LONG (COMPRA)";
                     const { profit, entryValue } = calculateEstimatedProfit(isShort);
@@ -383,7 +423,7 @@ Análise: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }
 🛡️ Stop Loss: ${isShort ? ENTRY_PROFILE.shortSL : ENTRY_PROFILE.longSL}
 💰 Ganho Estimado: $${profit}
 #TradeSignal #Bybit
-                    `;
+`;
                     await sendTelegramMessage(msg);
                     log(`🚀 Sinal ${op} enviado para ${symbol}!`);
                     lastSignalTimestamps[symbol] = currentCandleTimestamp;
@@ -396,19 +436,12 @@ Análise: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }
         }
 
         async function checkAllSignals() {
-            if (allAvailableAssets.length === 0) {
-                allAvailableAssets = await fetchAllUSDTAssets();
-                if (allAvailableAssets.length === 0) {
-                    log('Não foi possível obter a lista de ativos. Tentando novamente na próxima verificação.');
-                    return;
-                }
-            }
-
-            log('Iniciando verificação de todos os ativos...');
-            for (const asset of allAvailableAssets) {
+            let assets = ['DOGEUSDT', 'ETHUSDT'];
+            await fetchTrendingAssets();
+            assets = [...new Set([...assets, ...trendingAssets])]; // Combine and remove duplicates
+            for (const asset of assets) {
                 await checkSignal(asset);
             }
-            log('Verificação de todos os ativos concluída.');
         }
 
         function startBot() {
@@ -417,9 +450,8 @@ Análise: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }
                 return;
             }
             isRunning = true;
-            updateStatus('🟢 Rodando - Monitoramento ativo de TODOS os ativos');
-            log('▶️ Bot iniciado! Verificando a cada 10 minutos todos os ativos USDT.');
-            // A primeira execução busca e verifica todos os ativos
+            updateStatus('🟢 Rodando - Monitoramento ativo');
+            log('▶️ Bot iniciado! Verificando a cada 10 minutos.');
             checkAllSignals();
             botInterval = setInterval(checkAllSignals, checkInterval);
         }
@@ -432,9 +464,9 @@ Análise: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }
             isRunning = false;
             clearInterval(botInterval);
             botInterval = null;
-            lastSignalTimestamps = {}; // Limpa o registro de sinais
+            lastSignalTimestamps = {};
             updateStatus('🔴 Parado');
-            log('⏹️ Bot parado! Monitoramento de todos os ativos encerrado.');
+            log('⏹️ Bot parado! Memória de sinais limpa.');
         }
 
         function checkNow() {
@@ -442,16 +474,14 @@ Análise: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }
                 log('⚠️ Inicie o bot primeiro!');
                 return;
             }
-            log('Forçando verificação imediata de todos os ativos...');
+            log('Forçando verificação imediata...');
             checkAllSignals();
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
+        document.addEventListener('DOMContentLoaded', () => {
             alert("AVISO DE SEGURANÇA: Token do Telegram exposto. Use apenas em ambiente seguro!");
             updateStatus('🟡 Pronto para iniciar');
-            log('🤖 Bot v3.2 carregado e pronto para monitorar todos os ativos!');
-            // Pré-carrega a lista de ativos ao carregar a página
-            allAvailableAssets = await fetchAllUSDTAssets();
+            log('🤖 Bot v3.3 carregado e pronto!');
         });
     </script>
 </body>
