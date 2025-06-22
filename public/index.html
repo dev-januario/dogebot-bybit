@@ -193,7 +193,7 @@
 <body>
     <div class="container">
         <h1>📊 Bot de Trading de Criptos Estáveis v3.4</h1>
-        <h2>Monitoramento de DOGE, ETH, BTC, USDT, BNB, XRP (4H)</h2>
+        <h2>Monitoramento de DOGE, ETH, BTC, BNB, XRP (4H)</h2>
         <div class="warning">
             ⚠️ ATENÇÃO: Nunca exponha seu Token de Bot do Telegram em código que roda no navegador. Ele pode ser
             roubado! Use este script em um servidor seguro.
@@ -327,8 +327,8 @@
                 gains.push(diff > 0 ? diff : 0);
                 losses.push(diff < 0 ? -diff : 0);
             }
-            let avgGain = gains.slice(0, period).reduce((a, b) => a + b) / period;
-            let avgLoss = losses.slice(0, period).reduce((a, b) => a + b) / period;
+            let avgGain = gains.slice(0, period).reduce((a, b) => a + b, 0) / period;
+            let avgLoss = losses.slice(0, period).reduce((a, b) => a + b, 0) / period;
             let rsiValues = [100 - (100 / (1 + (avgGain / avgLoss)))];
             for (let i = period; i < gains.length; i++) {
                 avgGain = (avgGain * (period - 1) + gains[i]) / period;
@@ -339,18 +339,17 @@
         }
 
         function stochastic(highs, lows, closes, kPeriod, kSlowing, dPeriod) {
-            let ll = [], hh = [];
+            let ll = [], hh = [], k = [];
             for (let i = kPeriod - 1; i < closes.length; i++) {
                 ll.push(Math.min(...lows.slice(i - kPeriod + 1, i + 1)));
                 hh.push(Math.max(...highs.slice(i - kPeriod + 1, i + 1)));
             }
-            let k = [];
             for (let i = 0; i < ll.length; i++) {
-                k.push((100 * (closes[i] + kPeriod - 1) - ll[i]) / ((hh[i] - ll[i] || 1)));
+                k.push(100 * (closes[i + kPeriod - 1] - ll[i]) / (hh[i] - ll[i] || 1));
             }
-            let smoothedSmoothedK = sma(k, kSlowingK);
-            let dSmooth = sma(smoothedK(smoothed, dKPeriod));
-            return { k: smoothedK, d: d };
+            let smoothedK = sma(k, kSlowing);
+            let d = sma(smoothedK, dPeriod);
+            return { k: smoothedK, d };
         }
 
         function adx(highs, lows, closes, period) {
@@ -359,16 +358,16 @@
                 let tr1 = highs[i] - lows[i];
                 let tr2 = Math.abs(highs[i] - closes[i - 1]);
                 let tr3 = Math.abs(lows[i] - closes[i - 1]);
-                trs.push(Math.max(...[tr1, tr2, tr3]));
+                trs.push(Math.max(tr1, tr2, tr3));
                 let upMove = highs[i] - highs[i - 1];
                 let downMove = lows[i - 1] - lows[i];
                 plusDMs.push((upMove > downMove && upMove > 0) ? upMove : 0);
                 minusDMs.push((downMove > upMove && downMove > 0) ? downMove : 0);
             }
-            const wildersSmooth = data => {
-                let smoothed = [data.slice(0, period).reduce((a, b) => a + b)];
+            const wildersSmooth = (data) => {
+                let smoothed = [data.slice(0, period).reduce((a, b) => a + b, 0) / period];
                 for (let i = period; i < data.length; i++) {
-                    smoothed.push(smoothed.at(-1)) - (smoothed.at(-1) / period) + data[i];
+                    smoothed.push((smoothed[smoothed.length - 1] * (period - 1) + data[i]) / period);
                 }
                 return smoothed;
             };
@@ -377,13 +376,13 @@
             let smoothedMinusDM = wildersSmooth(minusDMs);
             let plusDIs = [], minusDIs = [], dxs = [];
             for (let i = 0; i < smoothedTR.length; i++) {
-                plusDIs.push(100 * (smoothedPlusDM[i] / smoothedTR[i]));
-                minusDIs.push(100 * (smoothedMinusDM[i] / smoothedTR[i]));
+                plusDIs.push(100 * (smoothedPlusDM[i] / (smoothedTR[i] || 1)));
+                minusDIs.push(100 * (smoothedMinusDM[i] / (smoothedTR[i] || 1)));
             }
             for (let i = 0; i < plusDIs.length; i++) {
-                dxs.push(100 * Math.abs((plusDIs[i] - minusDIs[i]) / ((plusDIs[i] + minusDIs[i]))));
+                dxs.push(100 * Math.abs(plusDIs[i] - minusDIs[i]) / (plusDIs[i] + minusDIs[i] || 1));
             }
-            let adxValues = wildersSmooth(dxs.slice(period - 1));
+            let adxValues = wildersSmooth(dxs);
             return { adx: adxValues, plusDI: plusDIs, minusDI: minusDIs };
         }
 
@@ -405,7 +404,7 @@
                     log(`❌ Dados insuficientes para ${symbol}.`);
                     return;
                 }
-                const currentCandleTimestamp = candles.at(-1).time;
+                const currentCandleTimestamp = candles[candles.length - 1].time;
                 if (lastSignalTimestamps[symbol] === currentCandleTimestamp) {
                     log(`⏳ Sinal já enviado para ${symbol} neste candle.`);
                     return;
@@ -419,13 +418,13 @@
                 const rsi14 = rsi(closes, 14);
                 const stoch = stochastic(highs, lows, closes, 14, 5, 5);
                 const adxResult = adx(highs, lows, closes, 14);
-                const currentPrice = closes.at(-1);
-                const lastEma17 = ema17.at(-1);
-                const lastEma50 = ema50.at(-1);
-                const lastEma72 = ema72.at(-1);
-                const lastRsi = rsi14.at(-1);
-                const lastStochK = stoch.k.at(-1);
-                const lastAdx = adxResult.adx.at(-1);
+                const currentPrice = closes[closes.length - 1];
+                const lastEma17 = ema17[ema17.length - 1];
+                const lastEma50 = ema50[ema50.length - 1];
+                const lastEma72 = ema72[ema72.length - 1];
+                const lastRsi = rsi14[rsi14.length - 1];
+                const lastStochK = stoch.k[stoch.k.length - 1];
+                const lastAdx = adxResult.adx[adxResult.adx.length - 1];
                 log(`📊 ${symbol} | Preço: ${currentPrice.toFixed(5)} | RSI: ${lastRsi.toFixed(2)} | ADX: ${lastAdx.toFixed(2)}`);
                 const isLong = lastEma17 > lastEma50 && lastEma50 > lastEma72 && lastRsi > 50 && lastAdx > ADX_MINIMO_TENDENCIA && lastStochK < 80;
                 const isShort = lastEma17 < lastEma50 && lastEma50 < lastEma72 && lastRsi < 50 && lastAdx > ADX_MINIMO_TENDENCIA && lastStochK > 20;
@@ -458,7 +457,7 @@ Análise: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }
         }
 
         async function checkAllSignals() {
-            const assets = ['DOGEUSDT', 'ETHUSDT', 'BTCUSDT', 'USDTUSDT', 'BNBUSDT', 'XRPUSDT'];
+            const assets = ['DOGEUSDT', 'ETHUSDT', 'BTCUSDT', 'BNBUSDT', 'XRPUSDT'];
             for (const asset of assets) {
                 await checkSignal(asset);
             }
