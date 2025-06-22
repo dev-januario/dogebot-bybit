@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Bot de Trading Multi-Ativos - v3.0</title>
+    <title>Bot de Trading Multi-Ativos - v3.2</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -86,18 +86,23 @@
             font-size: 12px;
         }
 
-        select {
+        select,
+        input[type="number"] {
             padding: 8px;
             margin: 10px 5px;
             border-radius: 5px;
+        }
+
+        label {
+            margin-right: 10px;
         }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <h1>📈 Bot de Trading Multi-Ativos v3.0</h1>
-        <h2>Monitoramento de Múltiplos Ativos (4H)</h2>
+        <h1>📈 Bot de Trading Multi-Ativos v3.2</h1>
+        <h2>Monitoramento de ETH, DOGE e Picos (4H)</h2>
         <div class="warning">
             ⚠️ ATENÇÃO: Nunca exponha seu Token de Bot do Telegram em código que roda no navegador. Ele pode ser
             roubado! Use este script em um servidor seguro.
@@ -112,11 +117,12 @@
         </div>
         <div>
             <h3>📊 Controles</h3>
+            <label for="entryValue">Valor de Entrada (USD):</label>
+            <input type="number" id="entryValue" min="1" placeholder="Ex.: 200" />
             <select id="assetSelect" onchange="updateAsset()">
                 <option value="DOGEUSDT">DOGEUSDT</option>
                 <option value="ETHUSDT">ETHUSDT</option>
-                <option value="BTCUSDT">BTCUSDT</option>
-                <option value="TRENDING">Ativos em Tendência</option>
+                <option value="TRENDING">Ativos com Picos</option>
             </select>
             <button onclick="startBot()">▶️ Iniciar Bot</button>
             <button onclick="stopBot()">⏹️ Parar Bot</button>
@@ -133,13 +139,17 @@
         const telegramChatId = "@DogeEntradas";
 
         // Configurações de Trade
-        const ENTRY_PROFILES = {
-            Conservador: { leverage: "5x", positionSize: "5%", longTP: "+2%", longSL: "-1%", shortTP: "-2%", shortSL: "+1%" },
-            Equilibrado: { leverage: "10x", positionSize: "10%", longTP: "+4%", longSL: "-2%", shortTP: "-4%", shortSL: "+2%" },
-            Agressivo: { leverage: "20x", positionSize: "15%", longTP: "+6%", longSL: "-3%", shortTP: "-6%", shortSL: "+3%" }
+        const ENTRY_PROFILE = {
+            leverage: "10x",
+            positionSize: "10%",
+            longTP: "+4%",
+            longSL: "-2%",
+            shortTP: "-4%",
+            shortSL: "+2%"
         };
+        const DEFAULT_ENTRY_VALUE = 100; // Valor padrão se o campo estiver vazio
         const ADX_MINIMO_TENDENCIA = 25;
-        const TREND_THRESHOLD = 15; // Variação de preço em 24h para ativos em tendência
+        const PEAK_THRESHOLD = 10; // Variação mínima em 24h após pico recente
         const checkInterval = 10 * 60 * 1000; // 10 minutos
         const apiKlineUrl = "https://api.bybit.com/v5/market/kline";
         const apiTickersUrl = "https://api.bybit.com/v5/market/tickers?category=linear";
@@ -164,7 +174,7 @@
             try {
                 log('Enviando mensagem de teste...');
                 const now = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-                const testMsg = `✅ Teste do Bot de Trading v3.0\nData: ${now}`;
+                const testMsg = `✅ Teste do Bot de Trading v3.2\nData: ${now}`;
                 await sendTelegramMessage(testMsg);
                 log('✅ Mensagem de teste enviada!');
             } catch (error) {
@@ -208,12 +218,24 @@
                 const response = await fetch(apiTickersUrl);
                 const json = await response.json();
                 if (json.retCode !== 0) throw new Error(`Erro API: ${json.retMsg}`);
-                trendingAssets = json.result.list
-                    .filter(t => t.symbol.endsWith("USDT") && Number(t.price24hPcnt) * 100 > TREND_THRESHOLD)
-                    .map(t => t.symbol);
-                log(`📈 Ativos em tendência: ${trendingAssets.join(', ') || 'Nenhum'}`);
+                trendingAssets = [];
+                for (const ticker of json.result.list) {
+                    if (!ticker.symbol.endsWith("USDT")) continue;
+                    const candles = await fetchKlineData(ticker.symbol);
+                    if (candles.length < 6) continue;
+                    const recentCandles = candles.slice(-6); // Últimos 24h (6 candles de 4h)
+                    const olderPrice = candles[candles.length - 12]?.close || candles[0].close; // Aproximadamente 48h atrás
+                    const currentPrice = candles[0].close;
+                    const totalChange = ((currentPrice - olderPrice) / olderPrice) * 100;
+                    if (totalChange < PEAK_THRESHOLD) continue;
+                    const recentChange = recentCandles.reduce((sum, c) => sum + ((c.close - c.open) / c.open) * 100, 0);
+                    if (recentChange > totalChange * 0.7) { // Pico recente contribui com >70% da variação
+                        trendingAssets.push(ticker.symbol);
+                    }
+                }
+                log(`📈 Ativos com picos: ${trendingAssets.join(', ') || 'Nenhum'}`);
             } catch (error) {
-                log(`❌ Erro ao buscar ativos em tendência: ${error.message}`);
+                log(`❌ Erro ao buscar ativos com picos: ${error.message}`);
             }
         }
 
@@ -304,6 +326,15 @@
             return { adx: adxValues, plusDI: plusDIs, minusDI: minusDIs };
         }
 
+        function calculateEstimatedProfit(isShort) {
+            const entryValueInput = document.getElementById('entryValue').value;
+            const entryValue = (entryValueInput && Number(entryValueInput) > 0) ? Number(entryValueInput) : DEFAULT_ENTRY_VALUE;
+            const leverage = 10; // 10x
+            const tpPercent = isShort ? -4 : 4; // TP em %
+            const profit = (entryValue * leverage * Math.abs(tpPercent)) / 100;
+            return { profit: profit.toFixed(2), entryValue };
+        }
+
         async function checkSignal(symbol) {
             if (!isRunning) return;
             try {
@@ -339,23 +370,23 @@
                 const isShort = lastEma17 < lastEma50 && lastEma50 < lastEma72 && lastRsi < 50 && lastAdx > ADX_MINIMO_TENDENCIA && lastStochK > 20;
                 if (isLong || isShort) {
                     const op = isShort ? "SHORT (VENDA)" : "LONG (COMPRA)";
-                    for (const [profileName, params] of Object.entries(ENTRY_PROFILES)) {
-                        const msg = `
+                    const { profit, entryValue } = calculateEstimatedProfit(isShort);
+                    const msg = `
 📢 ENTRADA CONFIRMADA - ${symbol} (4H) 📢
 Análise: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
 🔹 Operação: ${op}
 🔹 Ativo: ${symbol}
 🔹 Entrada: ~${currentPrice.toFixed(5)}
-🔹 Perfil: ${profileName}
-🔹 Alavancagem: ${params.leverage}
-🔹 Gerenciamento: ${params.positionSize}
-🎯 Take Profit: ${isShort ? params.shortTP : params.longTP}
-🛡️ Stop Loss: ${isShort ? params.shortSL : params.longSL}
+🔹 Valor de Entrada: $${entryValue.toFixed(2)}
+🔹 Alavancagem: ${ENTRY_PROFILE.leverage}
+🔹 Gerenciamento: ${ENTRY_PROFILE.positionSize}
+🎯 Take Profit: ${isShort ? ENTRY_PROFILE.shortTP : ENTRY_PROFILE.longTP}
+🛡️ Stop Loss: ${isShort ? ENTRY_PROFILE.shortSL : ENTRY_PROFILE.longSL}
+💰 Ganho Estimado: $${profit}
 #TradeSignal #Bybit
-                        `;
-                        await sendTelegramMessage(msg);
-                        log(`🚀 Sinal ${op} (${profileName}) enviado para ${symbol}!`);
-                    }
+                    `;
+                    await sendTelegramMessage(msg);
+                    log(`🚀 Sinal ${op} enviado para ${symbol}!`);
                     lastSignalTimestamps[symbol] = currentCandleTimestamp;
                 } else {
                     log(`⏳ Nenhuma entrada clara para ${symbol}.`);
@@ -367,7 +398,7 @@ Análise: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }
 
         async function checkAllSignals() {
             const selectedAsset = document.getElementById('assetSelect').value;
-            let assets = ['DOGEUSDT', 'ETHUSDT', 'BTCUSDT'];
+            let assets = ['DOGEUSDT', 'ETHUSDT'];
             if (selectedAsset === 'TRENDING') {
                 await fetchTrendingAssets();
                 assets = trendingAssets;
@@ -420,7 +451,7 @@ Análise: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }
         document.addEventListener('DOMContentLoaded', () => {
             alert("AVISO DE SEGURANÇA: Token do Telegram exposto. Use apenas em ambiente seguro!");
             updateStatus('🟡 Pronto para iniciar');
-            log('🤖 Bot v3.0 carregado e pronto!');
+            log('🤖 Bot v3.2 carregado e pronto!');
         });
     </script>
 </body>
