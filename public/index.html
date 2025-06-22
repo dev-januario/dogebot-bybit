@@ -3,150 +3,197 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Bot de Trading Multi-Ativos - v3.3</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot de Trading de Criptos Estáveis - v3.4</title>
     <style>
         body {
             font-family: 'Inter', -apple-system, sans-serif;
             margin: 0;
-            padding: 20px;
-            background-color: #121212;
-            color: #e0e0e0;
+            padding: 32px;
+            background: linear-gradient(135deg, #0d1117, #161b22);
+            color: #e6edf3;
             display: flex;
             justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
         }
 
         .container {
-            background: #1c1c1c;
-            padding: 24px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-            max-width: 900px;
+            background: #1e252f;
+            padding: 32px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            max-width: 960px;
             width: 100%;
-        }
-
-        h1,
-        h2 {
-            color: #ffffff;
-            text-align: center;
-            margin: 0 0 16px;
+            border: 1px solid #30363d;
         }
 
         h1 {
-            font-size: 28px;
+            font-size: 32px;
+            color: #ffffff;
+            text-align: center;
+            margin: 0 0 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 12px;
         }
 
         h2 {
-            font-size: 20px;
-            color: #bb86fc;
+            font-size: 22px;
+            color: #58a6ff;
+            text-align: center;
+            margin: 0 0 24px;
+            font-weight: 500;
+        }
+
+        h3 {
+            font-size: 18px;
+            color: #c3d1d9;
+            margin: 0 0 16px;
+            font-weight: 600;
         }
 
         .status {
-            background: #252525;
-            border: 1px solid #333;
-            padding: 12px;
-            border-radius: 8px;
-            margin: 16px 0;
-            color: #b0b0b0;
+            background: #21262d;
+            border: 1px solid #30363d;
+            padding: 16px;
+            border-radius: 12px;
+            margin: 24px 0;
+            color: #8b949e;
+            font-size: 15px;
         }
 
         .status span {
-            color: #03dac6;
+            color: #2ea44f;
             font-weight: 600;
         }
 
         .test-section {
-            background: #252525;
-            border: 1px solid #0288d1;
-            padding: 16px;
-            border-radius: 8px;
-            margin: 16px 0;
+            background: #21262d;
+            border: 1px solid #388bfd;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 24px 0;
         }
 
         .test-section h3 {
-            color: #0288d1;
-            margin: 0 0 12px;
+            color: #388bfd;
         }
 
         .warning {
-            background: #3e2723;
-            border: 1px solid #ff5722;
-            color: #ff8a65;
+            background: #2e1c1b;
+            border: 1px solid #f85149;
+            color: #ff7b72;
             padding: 16px;
-            border-radius: 8px;
-            margin: 16px 0;
-            font-weight: 600;
+            border-radius: 12px;
+            margin: 24px 0;
+            font-size: 15px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 24px 0;
+            align-items: center;
         }
 
         button {
-            background: #00c853;
-            color: #121212;
+            background: #2ea44f;
+            color: #ffffff;
             border: none;
             padding: 12px 24px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
-            margin: 8px 4px;
-            transition: background 0.2s;
+            transition: all 0.3s ease;
         }
 
         button:hover {
-            background: #00e676;
+            background: #3db961;
+            transform: translateY(-2px);
         }
 
         .test-btn {
-            background: #0288d1;
-            color: #ffffff;
+            background: #388bfd;
         }
 
         .test-btn:hover {
-            background: #039be5;
+            background: #58a6ff;
         }
 
         #log {
-            background: #1c1c1c;
-            border: 1px solid #333;
-            padding: 12px;
-            border-radius: 8px;
-            max-height: 320px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            padding: 16px;
+            border-radius: 12px;
+            max-height: 400px;
             overflow-y: auto;
             font-family: 'Fira Code', monospace;
-            font-size: 13px;
-            color: #b0b0b0;
+            font-size: 14px;
+            color: #8b949e;
+            line-height: 1.6;
         }
 
         input[type="number"] {
-            padding: 10px;
-            margin: 8px 4px;
+            padding: 12px;
             border-radius: 8px;
-            border: 1px solid #333;
-            background: #252525;
-            color: #e0e0e0;
-            font-size: 14px;
+            border: 1px solid #30363d;
+            background: #21262d;
+            color: #e6edf3;
+            font-size: 15px;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         input[type="number"]::placeholder {
-            color: #757575;
+            color: #6e7681;
         }
 
         label {
-            color: #bb86fc;
+            color: #58a6ff;
             font-weight: 600;
-            margin-right: 8px;
+            font-size: 15px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 16px;
+            }
+
+            .container {
+                padding: 24px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            h2 {
+                font-size: 20px;
+            }
+
+            .controls {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Fira+Code&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fira+Code&display=swap"
         rel="stylesheet">
 </head>
 
 <body>
     <div class="container">
-        <h1>📈 Bot de Trading Multi-Ativos v3.3</h1>
-        <h2>Monitoramento de ETH, DOGE e Ativos em Alta (4H)</h2>
+        <h1>📊 Bot de Trading de Criptos Estáveis v3.4</h1>
+        <h2>Monitoramento de DOGE, ETH, BTC, USDT, BNB, XRP (4H)</h2>
         <div class="warning">
             ⚠️ ATENÇÃO: Nunca exponha seu Token de Bot do Telegram em código que roda no navegador. Ele pode ser
             roubado! Use este script em um servidor seguro.
@@ -161,11 +208,15 @@
         </div>
         <div>
             <h3>📊 Controles</h3>
-            <label for="entryValue">Valor de Entrada (USD):</label>
-            <input type="number" id="entryValue" min="1" placeholder="Ex.: 200" />
-            <button onclick="startBot()">▶️ Iniciar Bot</button>
-            <button onclick="stopBot()">⏹️ Parar Bot</button>
-            <button onclick="checkNow()">🔍 Verificar Agora</button>
+            <div class="controls">
+                <div>
+                    <label for="entryValue">Valor de Entrada (USD):</label>
+                    <input type="number" id="entryValue" min="1" placeholder="Ex.: 200" />
+                </div>
+                <button onclick="startBot()">▶️ Iniciar Bot</button>
+                <button onclick="stopBot()">⏹️ Parar Bot</button>
+                <button onclick="checkNow()">🔍 Verificar Agora</button>
+            </div>
         </div>
         <div>
             <h3>📝 Log de Atividades</h3>
@@ -188,15 +239,12 @@
         };
         const DEFAULT_ENTRY_VALUE = 100;
         const ADX_MINIMO_TENDENCIA = 25;
-        const PEAK_THRESHOLD = 10;
         const checkInterval = 10 * 60 * 1000;
         const apiKlineUrl = "https://api.bybit.com/v5/market/kline";
-        const apiTickersUrl = "https://api.bybit.com/v5/market/tickers?category=linear";
 
         let botInterval = null;
         let isRunning = false;
         let lastSignalTimestamps = {};
-        let trendingAssets = [];
 
         function log(message) {
             const logElement = document.getElementById('log');
@@ -213,7 +261,7 @@
             try {
                 log('Enviando mensagem de teste...');
                 const now = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-                const testMsg = `✅ Teste do Bot de Trading v3.3\nData: ${now}`;
+                const testMsg = `✅ Teste do Bot de Trading v3.4\nData: ${now}`;
                 await sendTelegramMessage(testMsg);
                 log('✅ Mensagem de teste enviada!');
             } catch (error) {
@@ -249,32 +297,6 @@
             } catch (error) {
                 log(`❌ Erro ao buscar dados de ${symbol}: ${error.message}`);
                 return [];
-            }
-        }
-
-        async function fetchTrendingAssets() {
-            try {
-                const response = await fetch(apiTickersUrl);
-                const json = await response.json();
-                if (json.retCode !== 0) throw new Error(`Erro API: ${json.retMsg}`);
-                trendingAssets = [];
-                for (const ticker of json.result.list) {
-                    if (!ticker.symbol.endsWith("USDT")) continue;
-                    const candles = await fetchKlineData(ticker.symbol);
-                    if (candles.length < 6) continue;
-                    const recentCandles = candles.slice(-6);
-                    const olderPrice = candles[candles.length - 12]?.close || candles[0].close;
-                    const currentPrice = candles[0].close;
-                    const totalChange = ((currentPrice - olderPrice) / olderPrice) * 100;
-                    if (totalChange < PEAK_THRESHOLD) continue;
-                    const recentChange = recentCandles.reduce((sum, c) => sum + ((c.close - c.open) / c.open) * 100, 0);
-                    if (recentChange > totalChange * 0.7) {
-                        trendingAssets.push(ticker.symbol);
-                    }
-                }
-                log(`📈 Ativos com picos: ${trendingAssets.join(', ') || 'Nenhum'}`);
-            } catch (error) {
-                log(`❌ Erro ao buscar ativos com picos: ${error.message}`);
             }
         }
 
@@ -324,10 +346,10 @@
             }
             let k = [];
             for (let i = 0; i < ll.length; i++) {
-                k.push(100 * (closes[i + kPeriod - 1] - ll[i]) / (hh[i] - ll[i] || 1));
+                k.push((100 * (closes[i] + kPeriod - 1) - ll[i]) / ((hh[i] - ll[i] || 1)));
             }
-            let smoothedK = sma(k, kSlowing);
-            let d = sma(smoothedK, dPeriod);
+            let smoothedSmoothedK = sma(k, kSlowingK);
+            let dSmooth = sma(smoothedK(smoothed, dKPeriod));
             return { k: smoothedK, d: d };
         }
 
@@ -337,16 +359,16 @@
                 let tr1 = highs[i] - lows[i];
                 let tr2 = Math.abs(highs[i] - closes[i - 1]);
                 let tr3 = Math.abs(lows[i] - closes[i - 1]);
-                trs.push(Math.max(tr1, tr2, tr3));
+                trs.push(Math.max(...[tr1, tr2, tr3]));
                 let upMove = highs[i] - highs[i - 1];
                 let downMove = lows[i - 1] - lows[i];
                 plusDMs.push((upMove > downMove && upMove > 0) ? upMove : 0);
                 minusDMs.push((downMove > upMove && downMove > 0) ? downMove : 0);
             }
-            const wildersSmooth = (data) => {
+            const wildersSmooth = data => {
                 let smoothed = [data.slice(0, period).reduce((a, b) => a + b)];
                 for (let i = period; i < data.length; i++) {
-                    smoothed.push(smoothed.at(-1) - (smoothed.at(-1) / period) + data[i]);
+                    smoothed.push(smoothed.at(-1)) - (smoothed.at(-1) / period) + data[i];
                 }
                 return smoothed;
             };
@@ -359,7 +381,7 @@
                 minusDIs.push(100 * (smoothedMinusDM[i] / smoothedTR[i]));
             }
             for (let i = 0; i < plusDIs.length; i++) {
-                dxs.push(100 * Math.abs(plusDIs[i] - minusDIs[i]) / (plusDIs[i] + minusDIs[i]));
+                dxs.push(100 * Math.abs((plusDIs[i] - minusDIs[i]) / ((plusDIs[i] + minusDIs[i]))));
             }
             let adxValues = wildersSmooth(dxs.slice(period - 1));
             return { adx: adxValues, plusDI: plusDIs, minusDI: minusDIs };
@@ -423,7 +445,7 @@ Análise: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }
 🛡️ Stop Loss: ${isShort ? ENTRY_PROFILE.shortSL : ENTRY_PROFILE.longSL}
 💰 Ganho Estimado: $${profit}
 #TradeSignal #Bybit
-`;
+                    `;
                     await sendTelegramMessage(msg);
                     log(`🚀 Sinal ${op} enviado para ${symbol}!`);
                     lastSignalTimestamps[symbol] = currentCandleTimestamp;
@@ -436,9 +458,7 @@ Análise: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }
         }
 
         async function checkAllSignals() {
-            let assets = ['DOGEUSDT', 'ETHUSDT'];
-            await fetchTrendingAssets();
-            assets = [...new Set([...assets, ...trendingAssets])]; // Combine and remove duplicates
+            const assets = ['DOGEUSDT', 'ETHUSDT', 'BTCUSDT', 'USDTUSDT', 'BNBUSDT', 'XRPUSDT'];
             for (const asset of assets) {
                 await checkSignal(asset);
             }
@@ -480,8 +500,8 @@ Análise: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }
 
         document.addEventListener('DOMContentLoaded', () => {
             alert("AVISO DE SEGURANÇA: Token do Telegram exposto. Use apenas em ambiente seguro!");
-            updateStatus('🟡 Pronto para iniciar');
-            log('🤖 Bot v3.3 carregado e pronto!');
+            updateStatus('✅ Pronto para iniciar!');
+            log('🤖 Bot v3.4 carregado e pronto!');
         });
     </script>
 </body>
